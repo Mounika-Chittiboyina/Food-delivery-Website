@@ -1,1 +1,528 @@
 
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Foodie — Demo (Swiggy / Zomato style)</title>
+  <meta name="description" content="Demo food delivery frontend (static) - restaurants, menus, cart, checkout" />
+  <style>
+    /* ========== Theme & Reset ========== */
+    :root{
+      --bg:#f6f7fb; --card:#fff; --muted:#6b7280; --accent:#ff4d4f; --accent-2:#ff8a65;
+      --glass: rgba(255,255,255,0.6); --shadow: 0 6px 20px rgba(16,24,40,0.06);
+      font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;background:var(--bg);color:#0f172a}
+    a{color:inherit;text-decoration:none}
+    button{font:inherit}
+    img{max-width:100%;display:block;border-radius:8px}
+
+    /* ========== Header ========== */
+    header{
+      display:flex;align-items:center;justify-content:space-between;padding:14px 20px;background:linear-gradient(90deg,#fff, #fcfdff);
+      box-shadow:0 2px 8px rgba(15,15,15,0.04);position:sticky;top:0;z-index:40;
+    }
+    .brand{display:flex;gap:12px;align-items:center}
+    .logo{width:46px;height:46px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700}
+    .brand h1{font-size:1.05rem;margin:0}
+    .nav-actions{display:flex;gap:10px;align-items:center}
+    .search{display:flex;gap:8px;align-items:center;background:#fff;padding:6px;border-radius:10px;box-shadow:var(--shadow)}
+    .search input{border:0;outline:0;padding:8px 10px;width:220px}
+
+    /* ========== Layout ========== */
+    .container{max-width:1180px;margin:20px auto;padding:0 20px}
+    .grid{display:grid;grid-template-columns:1fr 360px;gap:20px}
+    @media (max-width:980px){.grid{grid-template-columns:1fr}}
+    
+    /* ========== Restaurant list ========== */
+    .filters{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+    .chip{padding:8px 12px;border-radius:999px;background:var(--card);border:1px solid #eef2f7;cursor:pointer}
+    .restaurants{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+    @media (max-width:720px){.restaurants{grid-template-columns:1fr}}
+
+    .r-card{background:var(--card);padding:12px;border-radius:12px;display:flex;gap:12px;box-shadow:var(--shadow);align-items:center}
+    .r-card img{width:120px;height:88px;object-fit:cover;border-radius:10px}
+    .r-info h3{margin:0 0 6px 0}
+    .r-meta{color:var(--muted);font-size:0.9rem}
+
+    /* ========== Restaurant detail & menu ========== */
+    .rest-hero{display:flex;gap:16px;align-items:center;margin-bottom:12px}
+    .rest-hero img{width:160px;height:120px;object-fit:cover;border-radius:12px}
+    .menu-list{display:flex;flex-direction:column;gap:12px}
+
+    .menu-item{display:flex;gap:12px;background:var(--card);padding:12px;border-radius:10px;box-shadow:0 6px 18px rgba(16,24,40,0.04);align-items:center}
+    .menu-item .mi-left{flex:1}
+    .price{font-weight:700}
+
+    .btn{background:var(--accent);color:#fff;padding:8px 12px;border-radius:10px;border:0;cursor:pointer}
+    .btn-ghost{background:#fff;border:1px solid #eee;padding:8px 12px;border-radius:10px;cursor:pointer}
+
+    /* ========== Cart panel ========== */
+    aside.cart{background:linear-gradient(180deg,#fff,#fbfdff);padding:14px;border-radius:12px;box-shadow:var(--shadow);position:sticky;top:84px;height:fit-content}
+    .cart h3{margin:0 0 8px 0}
+    .cart-list{display:flex;flex-direction:column;gap:10px;margin-top:10px}
+    .cart-item{display:flex;justify-content:space-between;gap:12px;align-items:center}
+    .qty {display:inline-flex;gap:8px;align-items:center}
+    .total-row{display:flex;justify-content:space-between;margin-top:12px;font-weight:700}
+    .empty{color:var(--muted);padding:14px;border-radius:8px;background:linear-gradient(90deg,#fff,#fcfdff);text-align:center}
+
+    /* ========== Footer & small helpers ========== */
+    footer{margin-top:28px;text-align:center;color:var(--muted);padding:20px 0}
+    .muted{color:var(--muted)}
+    .pill{display:inline-block;padding:4px 8px;border-radius:8px;border:1px solid #eee;background:#fff;font-size:0.85rem}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <div class="logo">F</div>
+      <div>
+        <h1>Foodie</h1>
+        <div class="muted" style="font-size:0.85rem">Restaurants near you</div>
+      </div>
+    </div>
+
+    <div class="nav-actions">
+      <div class="search">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M21 21l-4.35-4.35" stroke="#9aa4b2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="11" cy="11" r="6" stroke="#9aa4b2" stroke-width="2"/></svg>
+        <input id="global-search" placeholder="Search restaurants, dishes..." />
+      </div>
+      <button class="btn" id="open-cart">Cart (<span id="cart-count">0</span>)</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <div id="app" class="grid">
+      <!-- Left: content -->
+      <section id="content">
+        <!-- dynamic content inserted here -->
+      </section>
+
+      <!-- Right: cart -->
+      <aside class="cart" id="cart-panel">
+        <h3>Your cart</h3>
+        <div id="cart-list" class="cart-list">
+          <div class="empty">Cart is empty. Add items to order.</div>
+        </div>
+
+        <div class="total-row">
+          <div>Total</div>
+          <div id="cart-total">₹0</div>
+        </div>
+        <div style="margin-top:12px;display:flex;gap:8px">
+          <button class="btn" id="checkout-btn">Checkout</button>
+          <button class="btn-ghost" id="clear-cart">Clear</button>
+        </div>
+      </aside>
+    </div>
+
+    <footer>Demo site — frontend only. Want a backend? I can add Node/Express + APIs.</footer>
+  </main>
+
+  <script>
+    /*********************************************************
+     * Data: sample restaurants + menus (static demo)
+     *********************************************************/
+    const DB = {
+      restaurants: [
+        {
+          id: 'r1',
+          name: "Bella Pizzeria",
+          cuisine: "Italian",
+          rating: 4.5,
+          time: "25-35",
+          image: "https://images.unsplash.com/photo-1606755962770-8f2e6f7a1c36?auto=format&fit=crop&w=900&q=60",
+          desc: "Thin crust pizzas, fresh ingredients.",
+          menu: [
+            { id: 'm1', name: 'Margherita', desc: 'Tomato, mozzarella, basil', price: 249, veg: true, img: 'https://images.unsplash.com/photo-1604908177185-79c7cdb2d3c6?auto=format&fit=crop&w=800&q=60' },
+            { id: 'm2', name: 'Pepperoni', desc: 'Pepperoni & cheese', price: 299, veg: false, img: 'https://images.unsplash.com/photo-1548365328-9f0b9f3f7b53?auto=format&fit=crop&w=800&q=60' },
+            { id: 'm3', name: 'Garlic Bread', desc: 'Buttery garlic bread', price: 99, veg: true, img: 'https://images.unsplash.com/photo-1617191513727-2a8f1e0e0b7a?auto=format&fit=crop&w=800&q=60' }
+          ]
+        },
+        {
+          id: 'r2',
+          name: "Spice Hub",
+          cuisine: "Indian",
+          rating: 4.3,
+          time: "30-40",
+          image: "https://images.unsplash.com/photo-1608032779002-8f8a2d8b3b5e?auto=format&fit=crop&w=900&q=60",
+          desc: "Biryani, kebabs and homely curries.",
+          menu: [
+            { id: 'm4', name: 'Chicken Biryani', desc: 'Aromatic basmati rice', price: 279, veg: false, img: 'https://images.unsplash.com/photo-1604908177606-2f8b3e3f6c8b?auto=format&fit=crop&w=800&q=60' },
+            { id: 'm5', name: 'Paneer Butter Masala', desc: 'Creamy tomato gravy', price: 229, veg: true, img: 'https://images.unsplash.com/photo-1604908177606-2f8b3e3f6c8b?auto=format&fit=crop&w=800&q=60' },
+            { id: 'm6', name: 'Gulab Jamun', desc: 'Sweet dessert', price: 79, veg: true, img: 'https://images.unsplash.com/photo-1606755962770-8f2e6f7a1c36?auto=format&fit=crop&w=800&q=60' }
+          ]
+        },
+        {
+          id: 'r3',
+          name: "Burger Barn",
+          cuisine: "Fast Food",
+          rating: 4.1,
+          time: "20-30",
+          image: "https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=900&q=60",
+          desc: "Burgers, wraps and quick bites.",
+          menu: [
+            { id: 'm7', name: 'Veggie Burger', desc: 'Crispy patty & sauces', price: 149, veg: true, img: 'https://images.unsplash.com/photo-1586190848861-99aa4a171e90?auto=format&fit=crop&w=800&q=60' },
+            { id: 'm8', name: 'Chicken Burger', desc: 'Grilled chicken patty', price: 179, veg: false, img: 'https://images.unsplash.com/photo-1606755962770-8f2e6f7a1c36?auto=format&fit=crop&w=800&q=60' },
+            { id: 'm9', name: 'Fries', desc: 'Crispy salted fries', price: 79, veg: true, img: 'https://images.unsplash.com/photo-1604908177185-79c7cdb2d3c6?auto=format&fit=crop&w=800&q=60' }
+          ]
+        }
+      ]
+    };
+
+    /*********************************************************
+     * App state: cart persisted in localStorage
+     *********************************************************/
+    const CART_KEY = 'foodie_cart_v1';
+    const cart = JSON.parse(localStorage.getItem(CART_KEY) || '{}'); // {menuId: {menuItem, qty, restId}}
+    function saveCart(){ localStorage.setItem(CART_KEY, JSON.stringify(cart)); renderCart(); }
+
+    /*********************************************************
+     * Routing: hash-based SPA
+     *********************************************************/
+    function route(){
+      const hash = location.hash || '#home';
+      const content = document.getElementById('content');
+      if(hash === '#home'){
+        renderHome(content);
+      } else if(hash.startsWith('#r/')) {
+        const rid = hash.split('/')[1];
+        const rest = DB.restaurants.find(r=>r.id===rid);
+        if(rest) renderRestaurant(content, rest);
+        else content.innerHTML = '<p>Restaurant not found.</p>';
+      } else if(hash === '#checkout'){
+        renderCheckout(content);
+      } else {
+        renderHome(content);
+      }
+    }
+
+    /*********************************************************
+     * Render helpers
+     *********************************************************/
+    function el(html){ const tmp = document.createElement('div'); tmp.innerHTML = html.trim(); return tmp.firstElementChild; }
+    function rupee(n){ return '₹' + n; }
+
+    function renderHome(container){
+      // Header: filters/search are global (search input exists in header)
+      const cuisines = Array.from(new Set(DB.restaurants.map(r=>r.cuisine)));
+      let html = `
+        <div style="margin-bottom:10px">
+          <div class="filters">
+            <div class="chip" data-filter="all">All</div>
+            ${cuisines.map(c=>`<div class="chip" data-filter="${c}">${c}</div>`).join('')}
+          </div>
+        </div>
+        <div class="restaurants" id="restaurant-list"></div>
+      `;
+      container.innerHTML = html;
+
+      const list = document.getElementById('restaurant-list');
+      DB.restaurants.forEach(r=>{
+        const card = el(`
+          <div class="r-card" data-id="${r.id}">
+            <img src="${r.image}" alt="${r.name}" />
+            <div class="r-info">
+              <h3>${r.name}</h3>
+              <div class="r-meta">${r.cuisine} • ${r.time} mins • ⭐ ${r.rating}</div>
+              <div style="margin-top:8px;color:var(--muted);font-size:0.95rem">${r.desc}</div>
+            </div>
+          </div>
+        `);
+        card.addEventListener('click', ()=> location.hash = '#r/' + r.id);
+        list.appendChild(card);
+      });
+
+      // filters
+      document.querySelectorAll('.chip').forEach(c=>{
+        c.addEventListener('click', ()=>{
+          const f = c.dataset.filter;
+          if(f === 'all') {
+            list.innerHTML = '';
+            DB.restaurants.forEach(r=> list.appendChild(makeRestCard(r)));
+          } else {
+            list.innerHTML = '';
+            DB.restaurants.filter(r=>r.cuisine===f).forEach(r=> list.appendChild(makeRestCard(r)));
+          }
+        });
+      });
+
+      function makeRestCard(r){
+        const card = el(`
+          <div class="r-card" data-id="${r.id}">
+            <img src="${r.image}" alt="${r.name}" />
+            <div class="r-info">
+              <h3>${r.name}</h3>
+              <div class="r-meta">${r.cuisine} • ${r.time} mins • ⭐ ${r.rating}</div>
+              <div style="margin-top:8px;color:var(--muted);font-size:0.95rem">${r.desc}</div>
+            </div>
+          </div>
+        `);
+        card.addEventListener('click', ()=> location.hash = '#r/' + r.id);
+        return card;
+      }
+    }
+
+    function renderRestaurant(container, rest){
+      const html = `
+        <div>
+          <div class="rest-hero">
+            <img src="${rest.image}" alt="${rest.name}">
+            <div>
+              <h2 style="margin:0">${rest.name}</h2>
+              <div class="muted">${rest.cuisine} • ${rest.time} mins • ⭐ ${rest.rating}</div>
+              <div style="margin-top:8px;color:var(--muted)">${rest.desc}</div>
+              <div style="margin-top:10px">
+                <button class="btn" id="back-to-home">Back</button>
+                <a href="#checkout" style="margin-left:8px" class="btn-ghost">Go to Checkout</a>
+              </div>
+            </div>
+          </div>
+
+          <h3>Menu</h3>
+          <div class="menu-list" id="menu-list"></div>
+        </div>
+      `;
+      container.innerHTML = html;
+      document.getElementById('back-to-home').addEventListener('click', ()=> location.hash = '#home');
+
+      const menuList = document.getElementById('menu-list');
+      rest.menu.forEach(mi=>{
+        const miEl = el(`
+          <div class="menu-item" data-id="${mi.id}">
+            <div class="mi-left">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+                <div>
+                  <div style="font-weight:600">${mi.name} <span class="pill">${mi.veg ? 'Veg' : 'Non-veg'}</span></div>
+                  <div class="muted" style="margin-top:6px">${mi.desc}</div>
+                  <div style="margin-top:6px" class="price">${rupee(mi.price)}</div>
+                </div>
+                <div style="width:110px;text-align:right">
+                  <button class="btn add-btn" data-id="${mi.id}">Add</button>
+                </div>
+              </div>
+            </div>
+            <div style="width:120px">
+              <img src="${mi.img}" alt="${mi.name}">
+            </div>
+          </div>
+        `);
+        // add click handler
+        miEl.querySelector('.add-btn').addEventListener('click', ()=>{
+          addToCart(mi, rest.id);
+        });
+        menuList.appendChild(miEl);
+      });
+    }
+
+    function renderCheckout(container){
+      const items = Object.values(cart);
+      if(items.length===0){
+        container.innerHTML = `<div><h2>Checkout</h2><div class="empty">Your cart is empty. Add items before checkout.</div></div>`;
+        return;
+      }
+      const total = items.reduce((s,i) => s + i.menuItem.price * i.qty, 0);
+      let html = `
+        <div>
+          <h2>Checkout</h2>
+          <div style="display:flex;gap:20px;flex-wrap:wrap">
+            <div style="flex:1;min-width:280px">
+              <h3>Delivery details</h3>
+              <div style="display:flex;flex-direction:column;gap:8px">
+                <input id="name" placeholder="Full name" style="padding:10px;border-radius:8px;border:1px solid #eef2f7"/>
+                <input id="phone" placeholder="Phone number" style="padding:10px;border-radius:8px;border:1px solid #eef2f7"/>
+                <textarea id="address" placeholder="Delivery address" style="padding:10px;border-radius:8px;border:1px solid #eef2f7"></textarea>
+                <div style="display:flex;gap:8px">
+                  <button class="btn" id="place-order">Place Order</button>
+                  <a href="#home" class="btn-ghost">Continue Shopping</a>
+                </div>
+              </div>
+            </div>
+            <div style="width:360px;background:var(--card);padding:12px;border-radius:10px;box-shadow:var(--shadow)">
+              <h3>Order summary</h3>
+              <div id="checkout-items" style="display:flex;flex-direction:column;gap:8px;margin-top:8px"></div>
+              <div class="total-row" style="margin-top:12px">
+                <div>Total</div><div>${rupee(total)}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+      container.innerHTML = html;
+
+      const ci = document.getElementById('checkout-items');
+      items.forEach(i=>{
+        const row = el(`<div style="display:flex;justify-content:space-between"><div>${i.menuItem.name} x ${i.qty}</div><div>${rupee(i.menuItem.price * i.qty)}</div></div>`);
+        ci.appendChild(row);
+      });
+
+      document.getElementById('place-order').addEventListener('click', ()=>{
+        const name = document.getElementById('name').value.trim();
+        const phone = document.getElementById('phone').value.trim();
+        const address = document.getElementById('address').value.trim();
+        if(!name||!phone||!address){ alert('Please fill name, phone and address'); return; }
+        // Simulate order
+        const order = {
+          id: 'ORD' + Math.floor(Math.random()*90000 + 10000),
+          items: items.map(i => ({ id: i.menuItem.id, name: i.menuItem.name, qty: i.qty, price: i.menuItem.price })),
+          total,
+          name, phone, address,
+          placedAt: new Date().toISOString()
+        };
+        // You could send `order` to server via fetch() here.
+        alert('Order placed — ID: ' + order.id + '\\nTotal: ' + rupee(total));
+        // Clear cart
+        for(const k of Object.keys(cart)) delete cart[k];
+        saveCart();
+        location.hash = '#home';
+      });
+    }
+
+    /*********************************************************
+     * Cart functions
+     *********************************************************/
+    function addToCart(menuItem, restId){
+      const key = menuItem.id;
+      if(!cart[key]){
+        cart[key] = { menuItem, qty: 1, restId };
+      } else {
+        cart[key].qty += 1;
+      }
+      saveCart();
+      flash('+1 added');
+    }
+
+    function changeQty(menuId, delta){
+      if(!cart[menuId]) return;
+      cart[menuId].qty += delta;
+      if(cart[menuId].qty <= 0) delete cart[menuId];
+      saveCart();
+    }
+
+    function clearCart(){
+      for(const k of Object.keys(cart)) delete cart[k];
+      saveCart();
+    }
+
+    function renderCart(){
+      const list = document.getElementById('cart-list');
+      const totalEl = document.getElementById('cart-total');
+      const countEl = document.getElementById('cart-count');
+      if(!list) return;
+      list.innerHTML = '';
+      const ids = Object.keys(cart);
+      if(ids.length === 0){
+        list.innerHTML = '<div class="empty">Cart is empty. Add items to order.</div>';
+        totalEl.innerText = rupee(0);
+        countEl.innerText = '0';
+        return;
+      }
+      let total = 0;
+      let qtySum = 0;
+      ids.forEach(id=>{
+        const entry = cart[id];
+        total += entry.menuItem.price * entry.qty;
+        qtySum += entry.qty;
+        const node = el(`
+          <div class="cart-item">
+            <div style="flex:1">
+              <div style="font-weight:600">${entry.menuItem.name}</div>
+              <div class="muted">${rupee(entry.menuItem.price)} x ${entry.qty}</div>
+            </div>
+            <div class="qty">
+              <button class="btn-ghost small dec" data-id="${id}">-</button>
+              <div class="pill">${entry.qty}</div>
+              <button class="btn-ghost small inc" data-id="${id}">+</button>
+            </div>
+          </div>
+        `);
+        // attach handlers
+        node.querySelector('.inc').addEventListener('click', ()=>{ changeQty(id, 1); });
+        node.querySelector('.dec').addEventListener('click', ()=>{ changeQty(id, -1); });
+        list.appendChild(node);
+      });
+      totalEl.innerText = rupee(total);
+      countEl.innerText = qtySum.toString();
+    }
+
+    /*********************************************************
+     * Utilities & events
+     *********************************************************/
+    // small toast-like effect (very minimal)
+    function flash(msg){
+      const f = document.createElement('div');
+      f.textContent = msg;
+      f.style.position='fixed';f.style.right='20px';f.style.bottom='20px';
+      f.style.background='rgba(0,0,0,0.8)';f.style.color='#fff';f.style.padding='10px 14px';
+      f.style.borderRadius='10px';f.style.zIndex=9999;f.style.boxShadow='0 8px 30px rgba(2,6,23,0.3)';
+      document.body.appendChild(f);
+      setTimeout(()=> f.style.opacity='0',1200);
+      setTimeout(()=> f.remove(),1800);
+    }
+
+    // header search (global)
+    document.getElementById('global-search').addEventListener('input', (e)=>{
+      const q = e.target.value.trim().toLowerCase();
+      if(location.hash === '#home' || location.hash === '' ) {
+        const list = document.getElementById('restaurant-list');
+        if(!list) return;
+        list.innerHTML = '';
+        DB.restaurants.filter(r => (r.name + ' ' + r.cuisine + ' ' + r.desc).toLowerCase().includes(q)).forEach(r => {
+          const card = document.createElement('div'); card.appendChild(document.createTextNode(''));
+          list.appendChild(card);
+        });
+        // Re-render home with filtered items quickly:
+        list.innerHTML = '';
+        DB.restaurants.filter(r => (r.name + ' ' + r.cuisine + ' ' + r.desc).toLowerCase().includes(q))
+          .forEach(r => list.appendChild((()=> {
+            const card = document.createElement('div');
+            card.className = 'r-card';
+            card.innerHTML = `<img src="${r.image}" alt="${r.name}"><div class="r-info"><h3>${r.name}</h3><div class="r-meta">${r.cuisine} • ${r.time} mins • ⭐ ${r.rating}</div><div style="margin-top:8px;color:var(--muted);font-size:0.95rem">${r.desc}</div></div>`;
+            card.addEventListener('click', ()=> location.hash = '#r/' + r.id);
+            return card;
+          })()));
+      } else {
+        // when inside restaurant page, filter menu items
+        if(location.hash.startsWith('#r/')){
+          const restId = location.hash.split('/')[1];
+          const rest = DB.restaurants.find(r=>r.id===restId);
+          if(!rest) return;
+          const menuList = document.getElementById('menu-list');
+          if(!menuList) return;
+          menuList.innerHTML = '';
+          rest.menu.filter(mi => (mi.name + ' ' + mi.desc).toLowerCase().includes(q))
+            .forEach(mi => {
+              const miEl = document.createElement('div');
+              miEl.className = 'menu-item';
+              miEl.innerHTML = `<div class="mi-left"><div style="display:flex;align-items:center;justify-content:space-between;gap:12px"><div><div style="font-weight:600">${mi.name} <span class="pill">${mi.veg ? 'Veg' : 'Non-veg'}</span></div><div class="muted" style="margin-top:6px">${mi.desc}</div><div style="margin-top:6px" class="price">${rupee(mi.price)}</div></div><div style="width:110px;text-align:right"><button class="btn add-btn" data-id="${mi.id}">Add</button></div></div></div><div style="width:120px"><img src="${mi.img}" alt="${mi.name}"></div>`;
+              miEl.querySelector('.add-btn').addEventListener('click', ()=> addToCart(mi, rest.id));
+              menuList.appendChild(miEl);
+            });
+        }
+      }
+    });
+
+    // cart open button (smooth scroll to cart on small screens)
+    document.getElementById('open-cart').addEventListener('click', ()=>{
+      const panel = document.getElementById('cart-panel');
+      panel.scrollIntoView({behavior:'smooth', block:'center'});
+    });
+
+    // checkout & clear
+    document.getElementById('checkout-btn').addEventListener('click', ()=> location.hash = '#checkout');
+    document.getElementById('clear-cart').addEventListener('click', ()=> { if(confirm('Clear cart?')) clearCart(); });
+
+    // initialize route & render
+    window.addEventListener('hashchange', route);
+    window.addEventListener('load', ()=>{
+      renderCart();
+      route();
+    });
+
+    // re-render cart when storage changes in another tab
+    window.addEventListener('storage', (e)=>{ if(e.key === CART_KEY){ Object.assign(cart, JSON.parse(localStorage.getItem(CART_KEY) || '{}')); renderCart(); } });
+  </script>
+</body>
+</html>
